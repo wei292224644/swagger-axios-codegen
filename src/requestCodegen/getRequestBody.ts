@@ -1,7 +1,21 @@
-import { IRequestBody } from "../swaggerInterfaces";
+import pascalcase from "pascalcase";
+import { componentsCodegen } from "../componentsCodegen";
+import { createDefinitionClass } from "../componentsCodegen/createDefinitionClass";
+import { IComponents, IRequestBody } from "../swaggerInterfaces";
 import { refClassName } from "../utils";
+import { IDefinitionClasses, IDefinitionEnums } from "../baseInterfaces";
 
-export function getRequestBody(requestBody: IRequestBody) {
+const pathClassName = (path: string) => {
+  // let className = path.replace(/\//g, '');
+  let strs = path.split("/");
+  strs = strs.map(str => pascalcase(str));
+  const className = strs.join("")
+  return className;
+}
+
+export function getRequestBody(requestBody: IRequestBody, path: string) {
+  let definitionModels: IDefinitionClasses = {}
+  let definitionEnums: IDefinitionEnums = {}
   // 如果是空则直接反回
   if (!requestBody.content) return
 
@@ -30,6 +44,29 @@ export function getRequestBody(requestBody: IRequestBody) {
     } else if (reqBody.schema.$ref) {
       bodyType = refClassName(reqBody.schema.$ref)
       // console.log('propType', refClassName(p.schema.$ref))
+    } else if (reqBody.schema.properties && reqBody.schema.type) {
+      const v = reqBody.schema;
+
+      const className = pathClassName(path)
+
+      //@ts-ignore
+      const { enums, model } = createDefinitionClass(className, v.properties, v.additionalProperties, v.required);
+
+      enums.forEach(item => {
+        // definitionModels[item.name] = {
+        //   value: item.text
+        // }
+        definitionEnums[`#/components/schemas/${item.name}`] = {
+          name: item.name,
+          content: item.text
+        }
+      })
+
+      definitionModels[`#/components/schemas/${className}`] = {
+        value: model,
+        name: className
+      }
+      bodyType = className;
     }
     if (bodyType) {
       imports.push(bodyType)
@@ -39,7 +76,5 @@ export function getRequestBody(requestBody: IRequestBody) {
     }
 
   }
-  // console.log("reqbody imports", imports);
-
-  return { imports, bodyType }
+  return { imports, bodyType, models: definitionModels, enums: definitionEnums }
 }

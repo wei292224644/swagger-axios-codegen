@@ -103,12 +103,22 @@ export async function codegen(params: ISwaggerOptions) {
     })
   }
 
-  let requestClass = requestCodegen(paths, isV3, options)
   // let requestClasses = Object.entries(requestCodegen(swaggerSource.paths, isV3, options))
 
   const { models, enums } = isV3
     ? componentsCodegen(swaggerSource.components)
     : definitionsCodeGen(swaggerSource.definitions)
+
+  let { requestClass, definitionModels, definitionEnums } = requestCodegen(paths, isV3, options)
+
+
+  for (const [path, model] of Object.entries(definitionModels)) {
+    models[path] = model;
+  }
+
+  for (const [path, enumData] of Object.entries(definitionEnums)) {
+    enums[path] = enumData;
+  }
 
   let _allModel = Object.values(models)
   let _allEnum = Object.values(enums)
@@ -225,7 +235,6 @@ function codegenAll(
     })
 
     // 处理类和枚举
-
     Object.values(models).forEach(item => {
       const text =
         options.modelMode === 'interface'

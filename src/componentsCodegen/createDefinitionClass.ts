@@ -18,6 +18,7 @@ export function createDefinitionClass(
   additionalProperties: IDefinitionProperty | boolean | undefined,
   required: string[],
 ) {
+
   /** 枚举值 */
   let enums = []
   let types = []
@@ -73,39 +74,40 @@ export function createDefinitionClass(
     // propsStr += classPropsTemplate(k, propType, v.description)
     model.props.push({ name: k, type: propType, format: v.format, desc: v.description?.replace(/\//g, '\\/'), isType, isEnum, validationModel })
   }
+
   if (additionalProperties !== undefined) {
     let definition: IDefinitionProperty = additionalProperties as IDefinitionProperty
     switch (typeof additionalProperties) {
-        case "boolean":
-          if (additionalProperties === false) {
-            break
-          }
-          definition = {type: "object"} as IDefinitionProperty
-        case "object":
-        default:
-          let { propType, isEnum, isArray, isType, ref, isUnionType, isCombinedType } = propTrueType(definition);
-          let validationModel = null;
-          // Since there are no additional properties the whole object will be of this type
-          if (model.props.length == 0) {
-            model.props.push({
-              name: "[additionalProperties: string]",
-              type: propType,
-              format: definition.format,
-              desc: definition.description?.replace(/\//g, '\\/'),
-              isType,
-              isEnum,
-              validationModel
-            }) 
-          } else {
-            // We will have to use a union type to be able to use additional Properties
-            const typeName = `${className}WithAdditionalProperties`
-            const types = [className, `{ [additionalProperties: string]: ${propType} }`]
-            enums.push({
-              name: typeName,
-              text: `export type ${typeName} = ${types.join(' & ')};`
-            })
-          }
-      }
+      case "boolean":
+        if (additionalProperties === false) {
+          break
+        }
+        definition = { type: "object" } as IDefinitionProperty
+      case "object":
+      default:
+        let { propType, isEnum, isArray, isType, ref, isUnionType, isCombinedType } = propTrueType(definition);
+        let validationModel = null;
+        // Since there are no additional properties the whole object will be of this type
+        if (model.props.length == 0) {
+          model.props.push({
+            name: "[additionalProperties: string]",
+            type: propType,
+            format: definition.format,
+            desc: definition.description?.replace(/\//g, '\\/'),
+            isType,
+            isEnum,
+            validationModel
+          })
+        } else {
+          // We will have to use a union type to be able to use additional Properties
+          const typeName = `${className}WithAdditionalProperties`
+          const types = [className, `{ [additionalProperties: string]: ${propType} }`]
+          enums.push({
+            name: typeName,
+            text: `export type ${typeName} = ${types.join(' & ')};`
+          })
+        }
+    }
   }
   // : classTemplate(className, propsStr, constructorStr)
   return { enums, model }

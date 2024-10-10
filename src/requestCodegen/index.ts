@@ -1,5 +1,5 @@
 import camelcase from 'camelcase'
-import { ISwaggerOptions } from '../baseInterfaces'
+import { IDefinitionClass, IDefinitionClasses, IDefinitionEnum, IDefinitionEnums, ISwaggerOptions } from '../baseInterfaces'
 import { IPaths } from '../swaggerInterfaces'
 import { getClassNameByPath, getMethodNameByPath, RemoveSpecialCharacters } from '../utils'
 import { getContentType } from './getContentType'
@@ -18,8 +18,11 @@ export interface IRequestMethods {
   requestSchema: any;
 }
 
-export function requestCodegen(paths: IPaths, isV3: boolean, options: ISwaggerOptions): IRequestClass {
+export function requestCodegen(paths: IPaths, isV3: boolean, options: ISwaggerOptions): { requestClass: IRequestClass, definitionModels: IDefinitionClasses, definitionEnums: IDefinitionEnums } {
   const requestClasses: IRequestClass = {}
+
+  let definitionModels: IDefinitionClasses = {}
+  let definitionEnums: IDefinitionEnums = {}
 
   if (!!paths)
     for (const [path, request] of Object.entries(paths)) {
@@ -93,12 +96,19 @@ export function requestCodegen(paths: IPaths, isV3: boolean, options: ISwaggerOp
 
         let parsedRequestBody: any = {}
         if (reqProps.requestBody) {
-          parsedRequestBody = getRequestBody(reqProps.requestBody)
+          parsedRequestBody = getRequestBody(reqProps.requestBody, path)
 
           // 合并imports
           if (parsedRequestBody.imports?.length >= 0) {
             // console.log("requestBody ", parsedRequestBody);
             imports.push(...parsedRequestBody.imports)
+          }
+          for (const [path, model] of Object.entries(parsedRequestBody.models)) {
+            definitionModels[path] = model as IDefinitionClass;
+          }
+
+          for (const [path, enumData] of Object.entries(parsedRequestBody.enums)) {
+            definitionEnums[path] = enumData as IDefinitionEnum;
           }
 
           parsedParameters.requestParameters = parsedParameters.requestParameters
@@ -142,11 +152,13 @@ export function requestCodegen(paths: IPaths, isV3: boolean, options: ISwaggerOp
           continue
         }
 
+
         requestClasses[className].push({
           name: uniqueMethodName,
           operationId: uniqueMethodName,
           requestSchema: {
             summary: reqProps.summary,
+
             path,
             pathReplace,
             parameters,
@@ -160,7 +172,7 @@ export function requestCodegen(paths: IPaths, isV3: boolean, options: ISwaggerOp
         })
       }
     }
-  return requestClasses
+  return { requestClass: requestClasses, definitionEnums, definitionModels }
 }
 
 function trimSuffix(value: string, suffix: string) {
